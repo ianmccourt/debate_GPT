@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Debate Client</title>
+</head>
+<body>
+    <h1>LLM Debate Client</h1>
+    <input type="text" id="topicInput" placeholder="Enter debate topic" />
+    <button id="startButton">Start Debate</button>
+    <pre id="responses"></pre>
+
+    <script>
+        const responsesContainer = document.getElementById('responses');
+        const topicInput = document.getElementById('topicInput');
+        const startButton = document.getElementById('startButton');
+
+        let socket;
+
+        startButton.onclick = () => {
+            const topic = topicInput.value;
+            if (socket) {
+                socket.close();
+            }
+
+            socket = new WebSocket('ws://localhost:8765');
+            responsesContainer.textContent = '';
+
+            socket.onopen = () => {
+                console.log('Connected to the server');
+                socket.send(topic);
+            };
+
+            socket.onmessage = (event) => {
+                const message = event.data;
+                
+                if (message.startsWith('Participant')) {
+                    const parts = message.split('Response:');
+                    if (parts.length > 1) {
+                        const participantPrefix = message.split(':')[0];
+                        responsesContainer.textContent += `${participantPrefix}:${parts[parts.length-1]}\n\n`;
+                    }
+                } else if (message.includes("debate topic is:")) {
+                    responsesContainer.textContent += `Debate Topic: ${topic}\n\n`;
+                } else if (message.includes("concluded")) {
+                    responsesContainer.textContent += '\n' + message;
+                }
+            };
+
+            socket.onclose = () => {
+                console.log('Disconnected from the server');
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        };
+    </script>
+</body>
+</html>
